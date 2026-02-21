@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-sub_model = "EJVgGzkXRtntPAymntWS3bgEijcaKm9m8Qtr8PvvcbHe"
+subscription_model = "DTdDF7uKkhVp71NjeDo4U4SqSPVsrVxhLgW3f5bADZzs"
 
 [registry]
 url = "https://api.apr.dev"
@@ -16,4 +16,4 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
+test = "cargo test"
