@@ -1,10 +1,9 @@
 use crate::test_util::{create_plan, get_subscription, subscribe, setup, PROGRAM_PUBKEY};
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-use subscription_model::SubscriptionStatus;
 
 #[test]
-fn test_16_status_enum_values() {
+fn test_34_plan_in_subscription() {
     let (mut svm, mint, merchant, user, merchant_ata, user_ata) = setup();
 
     let plan_id = "test_plan";
@@ -41,14 +40,5 @@ fn test_16_status_enum_values() {
     .0;
 
     let sub = get_subscription(&svm, &sub_pda);
-    
-    // Verify all status variants exist
-    let _ = SubscriptionStatus::Trialing;
-    let _ = SubscriptionStatus::Active;
-    let _ = SubscriptionStatus::PastDue;
-    let _ = SubscriptionStatus::Unpaid;
-    let _ = SubscriptionStatus::Canceled;
-    let _ = SubscriptionStatus::Paused;
-    
-    assert!(matches!(sub.status, SubscriptionStatus::Trialing));
+    assert_eq!(sub.plan, plan_pda);
 }

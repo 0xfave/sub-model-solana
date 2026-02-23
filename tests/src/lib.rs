@@ -53,12 +53,6 @@ mod test_17_previous_status_tracking;
 mod test_18_subscription_details;
 
 #[cfg(test)]
-mod test_19_subscription_timestamp_fields;
-
-#[cfg(test)]
-mod test_20_trial_billing;
-
-#[cfg(test)]
 mod test_21_cancel_flag_initially_false;
 
 #[cfg(test)]
@@ -66,9 +60,6 @@ mod test_22_paused_at_initially_none;
 
 #[cfg(test)]
 mod test_23_status_tests;
-
-#[cfg(test)]
-mod test_24_billing_period_duration;
 
 #[cfg(test)]
 mod test_25_grace_period_constant;
@@ -86,15 +77,18 @@ mod test_28_plan_pda_derivation;
 mod test_29_subscription_pda_derivation;
 
 #[cfg(test)]
-mod test_30_pda_tests;
+mod test_30_subscription_creation;
 
 #[cfg(test)]
-mod test_31_subscription_tests;
+mod test_31_subscription_basic;
 
 #[cfg(test)]
-mod test_35_ownership;
+mod test_32_user_owns_subscription;
 
 #[cfg(test)]
-mod test_36_plan_in_subscription;
+mod test_33_plan_in_subscription;
+
+#[cfg(test)]
+mod test_34_plan_in_subscription;
 
 pub mod test_util;

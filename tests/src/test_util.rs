@@ -1,3 +1,4 @@
+use anchor_lang::AccountDeserialize;
 use anchor_lang::AnchorDeserialize;
 use anchor_lang::InstructionData;
 use solana_instruction::AccountMeta;
@@ -10,13 +11,14 @@ use solana_transaction::Transaction;
 use solana_clock::Clock;
 use solana_instruction::Instruction;
 use solana_system_program::id as SYSTEM_PROGRAM_ID;
+use subscription_model::Subscription;
 use subscription_model::instruction as subs_instruction;
 
 pub const PROGRAM_ID: &str = "DTdDF7uKkhVp71NjeDo4U4SqSPVsrVxhLgW3f5bADZzs";
 pub const PROGRAM_PUBKEY: Pubkey = Pubkey::from_str_const(PROGRAM_ID);
 pub const TOKEN_PROGRAM_ID: Pubkey = Pubkey::from_str_const("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
-pub async fn setup() -> (LiteSVM, Pubkey, Keypair, Keypair, Pubkey, Pubkey) {
+pub fn setup() -> (LiteSVM, Pubkey, Keypair, Keypair, Pubkey, Pubkey) {
     let mut svm = LiteSVM::new();
     
     // Load the compiled program
@@ -69,7 +71,7 @@ fn derive_subscription_address(user: &Pubkey, plan: &Pubkey) -> Pubkey {
     .0
 }
 
-pub async fn create_plan(
+pub fn create_plan(
     svm: &mut LiteSVM,
     owner: &Keypair,
     mint: &Pubkey,
@@ -118,7 +120,7 @@ pub async fn create_plan(
     plan_pda
 }
 
-pub async fn subscribe(
+pub fn subscribe(
     svm: &mut LiteSVM,
     user: &Keypair,
     plan_owner: &Pubkey,
@@ -158,7 +160,7 @@ pub async fn subscribe(
     sub_pda
 }
 
-pub async fn process_expired(
+pub fn process_expired(
     svm: &mut LiteSVM,
     payer: &Keypair,
     plan_owner: &Pubkey,
@@ -174,7 +176,7 @@ pub async fn process_expired(
     
     // First try: subscription only mutable (will fail with ConstraintMut)
     let accounts = vec![
-        AccountMeta::new_readonly(plan_pda, false), // plan - readonly (will fail)
+        AccountMeta::new(plan_pda, false), // plan - readonly (will fail)
         AccountMeta::new(sub_pda, false),          // subscription - mut workaround
     ];
 
@@ -185,190 +187,61 @@ pub async fn process_expired(
     };
 
     let tx = Transaction::new_signed_with_payer(
-        &[instruction],
+        &[instruction.clone()],
         Some(&payer.pubkey()),
         &[payer],
         svm.latest_blockhash(),
     );
     let result = svm.send_transaction(tx);
-    println!("Process expired result (try 1): {:?}", result);
+    println!("Process expired result: {:?}", result);
     
-    // If first try didn't work, the program requires both accounts to be mut
-    // This is expected to fail in LiteSVM due to the bug
-    if result.is_err() {
-        // Workaround: modify the program to not require mut on plan
-        panic!("Need to modify program to work around LiteSVM bug - process_expired requires both plan and subscription mutable");
+    // Handle AlreadyProcessed error - retry with fresh blockhash
+    if let Err(e) = &result {
+        let err_str = format!("{:?}", e);
+        if err_str.contains("AlreadyProcessed") {
+            println!("Retrying with fresh blockhash...");
+            let tx2 = Transaction::new_signed_with_payer(
+                &[instruction],
+                Some(&payer.pubkey()),
+                &[payer],
+                svm.latest_blockhash(),
+            );
+            svm.send_transaction(tx2).unwrap();
+            return;
+        }
     }
+    
+    result.unwrap();
 }
 
 pub fn get_subscription(svm: &LiteSVM, sub_pda: &Pubkey) -> subscription_model::Subscription {
     let account_data = svm.get_account(sub_pda).expect("Subscription account should exist");
     
     // Try full data first
-    let result = subscription_model::Subscription::try_from_slice(&account_data.data);
+    let result = Subscription::try_deserialize(& mut account_data.data.as_ref());
+        // subscription_model::Subscription::try_deserialize(&account_data.data);
     
     match result {
-        Ok(sub) => return sub,
+        Ok(sub) => {
+            println!("Result {:?}", &sub);
+            return sub
+        },
         Err(e) => {
-            println!("Full data deserialization error: {:?}", e);
+            panic!("Full data deserialization error: {:?}", e);
         }
     }
-    
-    // Try skipping 8-byte Anchor discriminator
-    if account_data.data.len() > 8 {
-        let data = &account_data.data[8..];
-        
-        // Try deserializing - "Not all bytes read" actually means success with extra padding
-        let result = subscription_model::Subscription::try_from_slice(data);
-        
-        match result {
-            Ok(sub) => return sub,
-            Err(e) => {
-                let err_str = format!("{:?}", e);
-            if err_str.contains("Not all bytes read") {
-                // We need to manually construct it from the bytes we have
-                    // Let's manually parse the known fields
-                    let mut offset = 0;
-                    
-                    // user: Pubkey (32 bytes)
-                    let user_bytes = &data[offset..offset+32];
-                    let user_array: [u8; 32] = user_bytes.try_into().unwrap();
-                    let user = Pubkey::new_from_array(user_array);
-                    offset += 32;
-                    
-                    // plan: Pubkey (32 bytes)
-                    let plan_bytes = &data[offset..offset+32];
-                    let plan_array: [u8; 32] = plan_bytes.try_into().unwrap();
-                    let plan = Pubkey::new_from_array(plan_array);
-                    offset += 32;
-                    
-                    // status: SubscriptionStatus (1 byte)
-                    // Note: value 2 seems to appear when PastDue is expected - treat as PastDue
-                    let status_byte = data[offset];
-                    let status = match status_byte {
-                        0 => subscription_model::SubscriptionStatus::Trialing,
-                        1 => subscription_model::SubscriptionStatus::Active,
-                        2 | 3 => subscription_model::SubscriptionStatus::PastDue, // 2 appears to be PastDue
-                        4 => subscription_model::SubscriptionStatus::Unpaid,
-                        5 => subscription_model::SubscriptionStatus::Canceled,
-                        6 => subscription_model::SubscriptionStatus::Paused,
-                        _ => subscription_model::SubscriptionStatus::PastDue, // Default to PastDue
-                    };
-                    offset += 1;
-                    
-                    // previous_status: SubscriptionStatus (1 byte)
-                    let prev_status_byte = data[offset];
-                    let previous_status = match prev_status_byte {
-                        0 => subscription_model::SubscriptionStatus::Trialing,
-                        1 => subscription_model::SubscriptionStatus::Active,
-                        2 | 3 => subscription_model::SubscriptionStatus::PastDue, // 2 appears to be PastDue
-                        4 => subscription_model::SubscriptionStatus::Unpaid,
-                        5 => subscription_model::SubscriptionStatus::Canceled,
-                        6 => subscription_model::SubscriptionStatus::Paused,
-                        _ => subscription_model::SubscriptionStatus::PastDue, // Default to PastDue
-                    };
-                    offset += 1;
-                    
-                    // start_ts: i64 (8 bytes)
-                    let start_ts = i64::from_le_bytes(data[offset..offset+8].try_into().unwrap());
-                    offset += 8;
-                    
-                    // current_period_start: i64 (8 bytes)
-                    let current_period_start = i64::from_le_bytes(data[offset..offset+8].try_into().unwrap());
-                    offset += 8;
-                    
-                    // current_period_end: i64 (8 bytes)
-                    let current_period_end = i64::from_le_bytes(data[offset..offset+8].try_into().unwrap());
-                    offset += 8;
-                    
-                    // cancel_at_period_end: bool (1 byte)
-                    let cancel_at_period_end = data[offset] != 0;
-                    offset += 1;
-                    
-                    // paused_at: Option<i64> (1 byte discriminator + 8 bytes if Some)
-                    let paused_at_option = data[offset];
-                    offset += 1;
-                    let paused_at = if paused_at_option == 0 {
-                        None
-                    } else {
-                        Some(i64::from_le_bytes(data[offset..offset+8].try_into().unwrap()))
-                    };
-                    offset += 8;
-                    
-                    // bump: u8 (1 byte)
-                    let bump = data[offset];
-                    offset += 1;
-                    
-                    // last_payment_ts: Option<i64> (1 byte discriminator + 8 bytes if Some)
-                    let last_payment_option = data[offset];
-                    offset += 1;
-                    let last_payment_ts = if last_payment_option == 0 {
-                        None
-                    } else {
-                        Some(i64::from_le_bytes(data[offset..offset+8].try_into().unwrap()))
-                    };
-                    offset += 8;
-                    
-                    // failed_attempts_count: u8 (1 byte)
-                    let failed_attempts_count = data[offset];
-                    
-                    return subscription_model::Subscription {
-                        user,
-                        plan,
-                        status,
-                        previous_status,
-                        start_ts,
-                        current_period_start,
-                        current_period_end,
-                        cancel_at_period_end,
-                        paused_at,
-                        bump,
-                        last_payment_ts,
-                        failed_attempts_count,
-                    };
-                }
-                panic!("Could not deserialize subscription: {:?}", e);
-            }
-        }
-    }
-    
-    panic!("Could not deserialize subscription - no data");
 }
 
 pub fn get_plan(svm: &LiteSVM, plan_pda: &Pubkey) -> subscription_model::Plan {
     let account_data = svm.get_account(plan_pda).expect("Plan account should exist");
     
     // Try full data first
-    if let Ok(plan) = subscription_model::Plan::try_from_slice(&account_data.data) {
+    if let Ok(plan) = subscription_model::Plan::try_deserialize(&mut account_data.data.as_ref()) {
+        println!("Plan Result {:?}", &plan);
         return plan;
+    } else {
+        panic!("Full data deserialization error");
     }
-    
-    // Try skipping 8-byte Anchor discriminator
-    if account_data.data.len() > 8 {
-        let data = &account_data.data[8..];
-        let result = subscription_model::Plan::try_from_slice(data);
-        
-        match result {
-            Ok(plan) => return plan,
-            Err(e) => {
-                let err_str = format!("{:?}", e);
-                if err_str.contains("Not all bytes read") {
-                    // The deserialization succeeded but there's extra data
-                    // Try with various lengths
-                    for len in [100, 120, 140, 160].iter() {
-                        if data.len() >= *len {
-                            if let Ok(plan) = subscription_model::Plan::try_from_slice(&data[..*len]) {
-                                return plan;
-                            }
-                        }
-                    }
-                }
-                println!("Plan deserialization error: {:?}", e);
-            }
-        }
-    }
-    
-    panic!("Could not deserialize plan");
 }
 
 pub fn set_clock(svm: &mut LiteSVM, unix_timestamp: i64) {

@@ -3,9 +3,9 @@ use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 use subscription_model::SubscriptionStatus;
 
-#[tokio::test]
-async fn test_13_multiple_plans() {
-    let (mut svm, mint, merchant, user, merchant_ata, user_ata) = setup().await;
+#[test]
+fn test_13_multiple_plans() {
+    let (mut svm, mint, merchant, user, merchant_ata, user_ata) = setup();
 
     // Create first plan
     let plan_id_1 = "basic_plan";
@@ -21,8 +21,7 @@ async fn test_13_multiple_plans() {
         price_1,
         30 * 24 * 60 * 60,
         trial_days_1,
-    )
-    .await;
+    );
 
     // Subscribe to first plan
     subscribe(
@@ -32,8 +31,7 @@ async fn test_13_multiple_plans() {
         plan_id_1,
         &user_ata,
         &merchant_ata,
-    )
-    .await;
+    );
 
     let plan_pda_1 = Pubkey::find_program_address(
         &[b"plan", merchant.pubkey().as_ref(), plan_id_1.as_bytes()],
@@ -65,8 +63,7 @@ async fn test_13_multiple_plans() {
         price_2,
         30 * 24 * 60 * 60,
         trial_days_2,
-    )
-    .await;
+    );
 
     // Can't test second subscription due to LiteSVM limitations
     // But we verified first subscription works correctly

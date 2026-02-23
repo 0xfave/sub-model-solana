@@ -3,10 +3,10 @@ use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 use subscription_model::SubscriptionStatus;
 
-#[tokio::test]
-async fn test_5_trial_expiry_active_subscribers() {
+#[test]
+fn test_5_trial_expiry_active_subscribers() {
     // This test verifies that active_subscribers is properly maintained during trial expiry
-    let (mut svm, mint, merchant, user, merchant_ata, user_ata) = setup().await;
+    let (mut svm, mint, merchant, user, merchant_ata, user_ata) = setup();
 
     let plan_id = "test_plan";
     let price = 1_000_000;
@@ -22,8 +22,7 @@ async fn test_5_trial_expiry_active_subscribers() {
         price,
         duration_seconds,
         trial_days,
-    )
-    .await;
+    );
 
     let plan_pda = Pubkey::find_program_address(
         &[b"plan", merchant.pubkey().as_ref(), plan_id.as_bytes()],
@@ -39,8 +38,7 @@ async fn test_5_trial_expiry_active_subscribers() {
         plan_id,
         &user_ata,
         &merchant_ata,
-    )
-    .await;
+    );
 
     let sub_pda = Pubkey::find_program_address(
         &[b"subscription", user.pubkey().as_ref(), plan_pda.as_ref()],
@@ -58,7 +56,7 @@ async fn test_5_trial_expiry_active_subscribers() {
     // Advance past trial and process expired
     let trial_end = sub.current_period_end + 1;
     set_clock(&mut svm, trial_end);
-    process_expired(&mut svm, &user, &merchant.pubkey(), plan_id, &user.pubkey()).await;
+    process_expired(&mut svm, &user, &merchant.pubkey(), plan_id, &user.pubkey());
 
     // After trial expiry to PastDue, active_subscribers should still be 1
     let plan_after = get_plan(&svm, &plan_pda);

@@ -3,9 +3,9 @@ use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 use subscription_model::SubscriptionStatus;
 
-#[tokio::test]
-async fn test_9_subscription_initial_state() {
-    let (mut svm, mint, merchant, user, merchant_ata, user_ata) = setup().await;
+#[test]
+fn test_9_subscription_initial_state() {
+    let (mut svm, mint, merchant, user, merchant_ata, user_ata) = setup();
 
     let plan_id = "test_plan";
     let price = 1_000_000;
@@ -21,8 +21,7 @@ async fn test_9_subscription_initial_state() {
         price,
         duration_seconds,
         trial_days,
-    )
-    .await;
+    );
 
     subscribe(
         &mut svm,
@@ -31,8 +30,7 @@ async fn test_9_subscription_initial_state() {
         plan_id,
         &user_ata,
         &merchant_ata,
-    )
-    .await;
+    );
 
     let plan_pda = Pubkey::find_program_address(
         &[b"plan", merchant.pubkey().as_ref(), plan_id.as_bytes()],

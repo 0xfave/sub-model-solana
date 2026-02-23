@@ -1,11 +1,10 @@
 use crate::test_util::{create_plan, get_subscription, subscribe, setup, PROGRAM_PUBKEY};
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-use subscription_model::SubscriptionStatus;
 
-#[tokio::test]
-async fn test_27_failed_attempts_initially_zero() {
-    let (mut svm, mint, merchant, user, merchant_ata, user_ata) = setup().await;
+#[test]
+fn test_27_failed_attempts_initially_zero() {
+    let (mut svm, mint, merchant, user, merchant_ata, user_ata) = setup();
 
     let plan_id = "test_plan";
     create_plan(
@@ -17,8 +16,7 @@ async fn test_27_failed_attempts_initially_zero() {
         1_000_000,
         30 * 24 * 60 * 60,
         7,
-    )
-    .await;
+    );
 
     subscribe(
         &mut svm,
@@ -27,8 +25,7 @@ async fn test_27_failed_attempts_initially_zero() {
         plan_id,
         &user_ata,
         &merchant_ata,
-    )
-    .await;
+    );
 
     let plan_pda = Pubkey::find_program_address(
         &[b"plan", merchant.pubkey().as_ref(), plan_id.as_bytes()],

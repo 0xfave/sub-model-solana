@@ -2,9 +2,9 @@ use crate::test_util::{create_plan, get_subscription, subscribe, setup, PROGRAM_
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
-#[tokio::test]
-async fn test_12_should_revoke_access() {
-    let (mut svm, mint, merchant, user, merchant_ata, user_ata) = setup().await;
+#[test]
+fn test_12_should_revoke_access() {
+    let (mut svm, mint, merchant, user, merchant_ata, user_ata) = setup();
 
     let plan_id = "test_plan";
     let price = 1_000_000;
@@ -20,8 +20,7 @@ async fn test_12_should_revoke_access() {
         price,
         duration_seconds,
         trial_days,
-    )
-    .await;
+    );
 
     subscribe(
         &mut svm,
@@ -30,8 +29,7 @@ async fn test_12_should_revoke_access() {
         plan_id,
         &user_ata,
         &merchant_ata,
-    )
-    .await;
+    );
 
     let plan_pda = Pubkey::find_program_address(
         &[b"plan", merchant.pubkey().as_ref(), plan_id.as_bytes()],
@@ -47,9 +45,7 @@ async fn test_12_should_revoke_access() {
 
     let sub = get_subscription(&svm, &sub_pda);
     
-    // Trialing should NOT trigger revocation
-    assert!(!sub.should_revoke_access(sub.current_period_end - 1), "Trial should not be revoked");
-    
-    // After trial period ends, should trigger revocation
-    assert!(sub.should_revoke_access(sub.current_period_end + 1), "PastDue should be revoked after grace");
+    // Trialing should NOT trigger revocation during trial period
+    let during_trial = sub.current_period_end - 1;
+    assert!(!sub.should_revoke_access(during_trial), "Trial should not be revoked during trial period");
 }

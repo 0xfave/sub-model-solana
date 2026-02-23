@@ -32,7 +32,6 @@ pub mod subscription_model {
         require!(price > 0, ErrorCode::InvalidPrice);
         require!(duration_seconds > 0, ErrorCode::InvalidDuration);
         require!(trial_days <= MAX_TRIAL_DAYS, ErrorCode::TrialTooLong);
-        require!(plan_id.len() <= 32, ErrorCode::PlanIdTooLong);
         // Ensure duration fits in i64 for timestamp arithmetic
         require!(duration_seconds <= i64::MAX as u64, ErrorCode::DurationOverflow);
 
@@ -156,6 +155,8 @@ pub mod subscription_model {
                 subscription.last_payment_ts = Some(now);
                 subscription.failed_attempts_count = 0;
                 subscription.cancel_at_period_end = false;
+                plan.active_subscribers =
+                    plan.active_subscribers.checked_add(1).ok_or(ErrorCode::SubscribersOverflow)?;
                 plan.lifetime_revenue =
                     plan.lifetime_revenue.checked_add(plan.price).ok_or(ErrorCode::RevenueOverflow)?;
 
@@ -327,6 +328,7 @@ pub mod subscription_model {
     /// - If status is PastDue and beyond grace, mark as Unpaid.
     pub fn process_expired(ctx: Context<ProcessExpired>) -> Result<()> {
         let subscription = &mut ctx.accounts.subscription;
+        let plan = &mut ctx.accounts.plan;
         let now = Clock::get()?.unix_timestamp;
 
         // Only process if period has ended
@@ -335,9 +337,11 @@ pub mod subscription_model {
         }
 
         let old_status = subscription.status;
+        msg!("❤️Entering match process expired");
 
         match subscription.status {
             SubscriptionStatus::Active => {
+                msg!("❤️Entering match process expired active");
                 if subscription.cancel_at_period_end {
                     subscription.status = SubscriptionStatus::Canceled;
                     emit!(StatusChanged {
@@ -367,9 +371,21 @@ pub mod subscription_model {
                         new_status: SubscriptionStatus::Canceled,
                         reason: "Cancel at period end executed".to_string(),
                     });
+                } else if now >= subscription.grace_deadline() {
+                    // Grace period also expired, move directly to Unpaid
+                    subscription.status = SubscriptionStatus::Unpaid;
+                    ctx.accounts.plan.active_subscribers =
+                        ctx.accounts.plan.active_subscribers.checked_sub(1).ok_or(ErrorCode::SubscribersUnderflow)?;
+                    emit!(StatusChanged {
+                        subscription: subscription.key(),
+                        old_status,
+                        new_status: SubscriptionStatus::Unpaid,
+                        reason: "Trial and grace period ended".to_string(),
+                    });
                 } else {
-                    // Trial ended, move to PastDue (or you could require first payment)
+                    // Trial ended, move to PastDue (within grace period)
                     subscription.status = SubscriptionStatus::PastDue;
+                    // Don't decrement - user still active during grace
                     emit!(StatusChanged {
                         subscription: subscription.key(),
                         old_status,
@@ -379,7 +395,10 @@ pub mod subscription_model {
                 }
             }
             SubscriptionStatus::PastDue => {
+                msg!("❤️Entering match process expired pastdue");
+                msg!("Gotten to past due");
                 if now >= subscription.grace_deadline() {
+                    msg!("Gotten to grace deadline");
                     subscription.status = SubscriptionStatus::Unpaid;
                     ctx.accounts.plan.active_subscribers =
                         ctx.accounts.plan.active_subscribers.checked_sub(1).ok_or(ErrorCode::SubscribersUnderflow)?;
@@ -392,7 +411,9 @@ pub mod subscription_model {
                     });
                 }
             }
-            _ => {}
+            _ => {
+                msg!("Exhausted match arm🔥")
+            }
         }
 
         Ok(())
@@ -510,7 +531,7 @@ pub struct PlanUpgraded {
 pub struct Initialize {}
 
 // ---------- Enums ----------
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, Debug, Copy)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, Debug, Copy, InitSpace)]
 #[repr(u8)]
 pub enum SubscriptionStatus {
     // In free trial; no charge yet. Access granted.
@@ -529,9 +550,10 @@ pub enum SubscriptionStatus {
 
 // ---------- Accounts ----------
 #[account]
-#[derive(Debug)]
+#[derive(Debug, InitSpace)]
 pub struct Plan {
     pub owner: Pubkey,
+    #[max_len(32)]
     pub plan_id: String,
     pub version: u16,
     pub price: u64,
@@ -544,7 +566,7 @@ pub struct Plan {
 }
 
 #[account]
-#[derive(Debug)]
+#[derive(Debug, InitSpace)]
 pub struct Subscription {
     pub user: Pubkey,
     pub plan: Pubkey,
@@ -605,7 +627,7 @@ pub struct CreatePlan<'info> {
     #[account(
         init,
         payer = owner,
-        space = 8 + 32 + 4 + plan_id.len() + 8 + 8 + 8 + 32 + 1 + 2 + 8 + 8,
+        space = Plan::DISCRIMINATOR.len() + Plan::INIT_SPACE,
         seeds = [b"plan", owner.key().as_ref(), plan_id.as_bytes()],
         bump
     )]
@@ -636,7 +658,7 @@ pub struct Subscribe<'info> {
     #[account(
         init_if_needed,
         payer = user,
-        space = 8 + 200,
+        space = Subscription::DISCRIMINATOR.len() + Subscription::INIT_SPACE,
         seeds = [b"subscription", user.key().as_ref(), plan.key().as_ref()],
         bump
     )]
@@ -761,6 +783,7 @@ pub struct Resume<'info> {
 #[derive(Accounts)]
 pub struct ProcessExpired<'info> {
     #[account(
+        mut,
         seeds = [b"plan", plan.owner.as_ref(), plan.plan_id.as_bytes()],
         bump = plan.bump
     )]
