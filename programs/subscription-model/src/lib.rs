@@ -627,6 +627,7 @@ pub struct Subscribe<'info> {
     pub user: Signer<'info>,
 
     #[account(
+        mut,
         seeds = [b"plan", plan.owner.as_ref(), plan.plan_id.as_bytes()],
         bump = plan.bump
     )]
@@ -642,14 +643,12 @@ pub struct Subscribe<'info> {
     pub subscription: Account<'info, Subscription>,
 
     #[account(
-        mut,
         constraint = user_token_account.owner == user.key() @ ErrorCode::InvalidUserTokenAccount,
         constraint = user_token_account.mint == plan.token_mint @ ErrorCode::MintMismatch
     )]
     pub user_token_account: Account<'info, TokenAccount>,
 
     #[account(
-        mut,
         constraint = merchant_token_account.owner == plan.owner @ ErrorCode::InvalidMerchantAccount,
         constraint = merchant_token_account.mint == plan.token_mint @ ErrorCode::MintMismatch
     )]
@@ -762,7 +761,6 @@ pub struct Resume<'info> {
 #[derive(Accounts)]
 pub struct ProcessExpired<'info> {
     #[account(
-        mut,
         seeds = [b"plan", plan.owner.as_ref(), plan.plan_id.as_bytes()],
         bump = plan.bump
     )]

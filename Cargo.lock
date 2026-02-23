@@ -6614,14 +6614,18 @@ version = "0.1.0"
 dependencies = [
  "anchor-client",
  "anchor-lang",
+ "anchor-spl",
  "litesvm",
  "litesvm-token",
+ "solana-clock",
+ "solana-instruction",
  "solana-keypair",
  "solana-pubkey",
  "solana-signer",
- "solana-system-interface",
+ "solana-system-program",
  "solana-transaction",
  "subscription-model",
+ "tokio",
 ]
 
 [[package]]
