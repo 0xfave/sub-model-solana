@@ -88,4 +88,13 @@ mod test_29_subscription_pda_derivation;
 #[cfg(test)]
 mod test_30_pda_tests;
 
+#[cfg(test)]
+mod test_31_subscription_tests;
+
+#[cfg(test)]
+mod test_35_ownership;
+
+#[cfg(test)]
+mod test_36_plan_in_subscription;
+
 pub mod test_util;
