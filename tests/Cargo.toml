@@ -11,3 +11,8 @@ anchor-lang = "0.31.1"
 subscription-model = { version = "0.1.0", path = "../programs/subscription-model" }
 litesvm = "0.6.1"
 litesvm-token = "0.6.1"
+solana-keypair = "2.2"
+solana-pubkey = "2.2"
+solana-signer = "2.2"
+solana-system-interface = "1"
+solana-transaction = "2.2"

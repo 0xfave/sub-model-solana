@@ -6616,6 +6616,11 @@ dependencies = [
  "anchor-lang",
  "litesvm",
  "litesvm-token",
+ "solana-keypair",
+ "solana-pubkey",
+ "solana-signer",
+ "solana-system-interface",
+ "solana-transaction",
  "subscription-model",
 ]
 
