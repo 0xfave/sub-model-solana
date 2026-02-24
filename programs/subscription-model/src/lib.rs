@@ -130,74 +130,67 @@ pub mod subscription_model {
         // Determine if eligible for renewal
         require!(subscription.eligible_for_renewal(now), ErrorCode::NotEligibleForRenewal);
 
-        // Transfer payment
-        let transfer_result = token::transfer(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                Transfer {
-                    from: ctx.accounts.user_token_account.to_account_info(),
-                    to: ctx.accounts.merchant_token_account.to_account_info(),
-                    authority: ctx.accounts.user.to_account_info(),
-                },
-            ),
-            plan.price,
-        );
+        // Check user's token balance
+        let user_balance = ctx.accounts.user_token_account.amount;
+        if user_balance >= plan.price {
+            // Sufficient funds: perform transfer
+            token::transfer(
+                CpiContext::new(
+                    ctx.accounts.token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.user_token_account.to_account_info(),
+                        to: ctx.accounts.merchant_token_account.to_account_info(),
+                        authority: ctx.accounts.user.to_account_info(),
+                    },
+                ),
+                plan.price,
+            )?;
 
-        match transfer_result {
-            Ok(()) => {
-                // Success
-                subscription.current_period_start = subscription.current_period_end;
-                subscription.current_period_end = subscription
-                    .current_period_end
-                    .checked_add(plan.duration_seconds as i64)
-                    .ok_or(ErrorCode::TimestampOverflow)?;
-                subscription.status = SubscriptionStatus::Active;
-                subscription.last_payment_ts = Some(now);
-                subscription.failed_attempts_count = 0;
-                subscription.cancel_at_period_end = false;
-                plan.active_subscribers =
-                    plan.active_subscribers.checked_add(1).ok_or(ErrorCode::SubscribersOverflow)?;
-                plan.lifetime_revenue =
-                    plan.lifetime_revenue.checked_add(plan.price).ok_or(ErrorCode::RevenueOverflow)?;
+            // Update subscription for successful renewal
+            subscription.current_period_start = now;
+            subscription.current_period_end =
+                now.checked_add(plan.duration_seconds as i64).ok_or(ErrorCode::TimestampOverflow)?;
+            subscription.status = SubscriptionStatus::Active;
+            subscription.last_payment_ts = Some(now);
+            subscription.failed_attempts_count = 0;
+            subscription.cancel_at_period_end = false;
+            plan.lifetime_revenue = plan.lifetime_revenue.checked_add(plan.price).ok_or(ErrorCode::RevenueOverflow)?;
 
-                emit!(RenewalSucceeded {
-                    subscription: subscription.key(),
-                    timestamp: now,
-                    new_end: subscription.current_period_end,
-                });
+            emit!(RenewalSucceeded {
+                subscription: subscription.key(),
+                timestamp: now,
+                new_end: subscription.current_period_end,
+            });
 
-                emit!(StatusChanged {
-                    subscription: subscription.key(),
-                    old_status,
-                    new_status: SubscriptionStatus::Active,
-                    reason: "Renewal payment succeeded".to_string(),
-                });
-            }
-            Err(e) => {
-                // Payment failed – update failure tracking, state persists
-                subscription.failed_attempts_count = subscription.failed_attempts_count.saturating_add(1);
+            emit!(StatusChanged {
+                subscription: subscription.key(),
+                old_status,
+                new_status: SubscriptionStatus::Active,
+                reason: "Renewal payment succeeded".to_string(),
+            });
+        } else {
+            // Insufficient funds: mark as failed but do NOT attempt transfer
+            subscription.failed_attempts_count = subscription.failed_attempts_count.saturating_add(1);
 
-                let new_status = if subscription.failed_attempts_count >= MAX_RETRIES {
-                    SubscriptionStatus::Unpaid
-                } else {
-                    SubscriptionStatus::PastDue
-                };
-                subscription.status = new_status;
+            let new_status = if subscription.failed_attempts_count >= MAX_RETRIES {
+                SubscriptionStatus::Unpaid
+            } else {
+                SubscriptionStatus::PastDue
+            };
+            subscription.status = new_status;
 
-                emit!(RenewalFailed {
-                    subscription: subscription.key(),
-                    timestamp: now,
-                    attempt: subscription.failed_attempts_count,
-                    reason: format!("Payment failed: {:?}", e),
-                });
-                emit!(StatusChanged {
-                    subscription: subscription.key(),
-                    old_status,
-                    new_status,
-                    reason: "Payment failed".to_string(),
-                });
-                // Transaction succeeds (state changes persist) – caller pays fees.
-            }
+            emit!(RenewalFailed {
+                subscription: subscription.key(),
+                timestamp: now,
+                attempt: subscription.failed_attempts_count,
+                reason: "Insufficient funds".to_string(),
+            });
+            emit!(StatusChanged {
+                subscription: subscription.key(),
+                old_status,
+                new_status,
+                reason: "Payment failed (insufficient funds)".to_string(),
+            });
         }
 
         Ok(())
@@ -604,8 +597,8 @@ impl Subscription {
 
     /// Whether access should be revoked right now (for off-chain enforcement)
     pub fn should_revoke_access(&self, now: i64) -> bool {
-        matches!(self.status, SubscriptionStatus::Unpaid | SubscriptionStatus::Canceled)
-            || (self.status == SubscriptionStatus::PastDue && now >= self.grace_deadline())
+        matches!(self.status, SubscriptionStatus::Unpaid | SubscriptionStatus::Canceled) ||
+            (self.status == SubscriptionStatus::PastDue && now >= self.grace_deadline())
     }
 
     pub fn grace_deadline(&self) -> i64 {
@@ -681,6 +674,7 @@ pub struct Renew<'info> {
     pub user: Signer<'info>, // payer of tx fees + token transfer authority
 
     #[account(
+        mut,
         seeds = [b"plan", plan.owner.as_ref(), plan.plan_id.as_bytes()],
         bump = plan.bump
     )]

@@ -1,17 +1,15 @@
-use anchor_lang::AccountDeserialize;
-use anchor_lang::InstructionData;
+use anchor_lang::{AccountDeserialize, InstructionData};
+use anchor_spl::token::TokenAccount;
 use litesvm::LiteSVM;
 use litesvm_token::{CreateAssociatedTokenAccount, CreateMint, MintTo};
 use solana_clock::Clock;
-use solana_instruction::AccountMeta;
-use solana_instruction::Instruction;
+use solana_instruction::{AccountMeta, Instruction};
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 use solana_system_program::id as SYSTEM_PROGRAM_ID;
 use solana_transaction::Transaction;
-use subscription_model::instruction as subs_instruction;
-use subscription_model::Subscription;
+use subscription_model::{instruction as subs_instruction, Subscription};
 
 pub const PROGRAM_ID: &str = "DTdDF7uKkhVp71NjeDo4U4SqSPVsrVxhLgW3f5bADZzs";
 pub const PROGRAM_PUBKEY: Pubkey = Pubkey::from_str_const(PROGRAM_ID);
@@ -40,6 +38,32 @@ pub fn setup() -> (LiteSVM, Pubkey, Keypair, Keypair, Pubkey, Pubkey) {
     let user_ata = CreateAssociatedTokenAccount::new(&mut svm, &payer, &mint).owner(&user.pubkey()).send().unwrap();
 
     MintTo::new(&mut svm, &payer, &mint, &user_ata, 1_000_000_000).send().unwrap();
+
+    (svm, mint, merchant, user, merchant_ata, user_ata)
+}
+
+pub fn setup_with_user_without_tokens() -> (LiteSVM, Pubkey, Keypair, Keypair, Pubkey, Pubkey) {
+    let mut svm = LiteSVM::new();
+
+    let program_bytes = include_bytes!("../../target/deploy/subscription_model.so");
+    svm.add_program(PROGRAM_PUBKEY, program_bytes);
+
+    let payer = Keypair::new();
+    svm.airdrop(&payer.pubkey(), 10_000_000_000).unwrap();
+
+    let mint = CreateMint::new(&mut svm, &payer).decimals(6).send().unwrap();
+
+    let merchant = Keypair::new();
+    let user = Keypair::new();
+
+    svm.airdrop(&merchant.pubkey(), 1_000_000_000).unwrap();
+    svm.airdrop(&user.pubkey(), 1_000_000_000).unwrap();
+
+    let merchant_ata =
+        CreateAssociatedTokenAccount::new(&mut svm, &payer, &mint).owner(&merchant.pubkey()).send().unwrap();
+    let user_ata = CreateAssociatedTokenAccount::new(&mut svm, &payer, &mint).owner(&user.pubkey()).send().unwrap();
+
+    // Don't mint any tokens to user - they have 0 balance
 
     (svm, mint, merchant, user, merchant_ata, user_ata)
 }
@@ -112,8 +136,8 @@ pub fn subscribe(
         AccountMeta::new(user.pubkey(), true),                 // user - signer, mut (payer)
         AccountMeta::new(plan_pda, false),                     // plan - writable (Subscribe modifies it)
         AccountMeta::new(sub_pda, false),                      // subscription - writable for init
-        AccountMeta::new_readonly(*user_token_account, false), // user_token_account
-        AccountMeta::new_readonly(*merchant_token_account, false), // merchant_token_account
+        AccountMeta::new(*user_token_account, false),          // user_token_account - writable for transfer
+        AccountMeta::new(*merchant_token_account, false),      // merchant_token_account - writable for transfer
         AccountMeta::new_readonly(TOKEN_PROGRAM_ID, false),    // token_program
         AccountMeta::new_readonly(SYSTEM_PROGRAM_ID(), false), // system_program
     ];
@@ -196,7 +220,6 @@ pub fn get_subscription(svm: &LiteSVM, sub_pda: &Pubkey) -> subscription_model::
 pub fn get_plan(svm: &LiteSVM, plan_pda: &Pubkey) -> subscription_model::Plan {
     let account_data = svm.get_account(plan_pda).expect("Plan account should exist");
 
-    // Try full data first
     if let Ok(plan) = subscription_model::Plan::try_deserialize(&mut account_data.data.as_ref()) {
         println!("Plan Result {:?}", &plan);
         return plan;
@@ -205,9 +228,18 @@ pub fn get_plan(svm: &LiteSVM, plan_pda: &Pubkey) -> subscription_model::Plan {
     }
 }
 
+pub fn get_token_balance(svm: &LiteSVM, token_account: &Pubkey) -> u64 {
+    let account_data = svm.get_account(token_account).expect("Token account should exist");
+    if let Ok(ata) = TokenAccount::try_deserialize(&mut account_data.data.as_ref()) {
+        return ata.amount;
+    }
+    panic!("Failed to deserialize token account");
+}
+
 pub fn set_clock(svm: &mut LiteSVM, unix_timestamp: i64) {
     let mut clock = svm.get_sysvar::<Clock>();
     clock.unix_timestamp = unix_timestamp;
+    clock.slot = clock.slot.saturating_add(1);
     svm.set_sysvar(&clock);
 }
 
@@ -228,4 +260,94 @@ pub fn cancel(svm: &mut LiteSVM, user: &Keypair, plan_owner: &Pubkey, plan_id: &
     let result = svm.send_transaction(tx);
     println!("Cancel result: {:?}", result);
     result.unwrap();
+}
+
+pub fn cancel_with_result(
+    svm: &mut LiteSVM,
+    user: &Keypair,
+    plan_owner: &Pubkey,
+    plan_id: &str,
+    immediate: bool,
+) -> Result<(), ()> {
+    let plan_pda = derive_plan_address(plan_owner, plan_id);
+    let sub_pda = derive_subscription_address(&user.pubkey(), &plan_pda);
+
+    let accounts = vec![
+        AccountMeta::new(user.pubkey(), true),
+        AccountMeta::new(plan_pda, false),
+        AccountMeta::new(sub_pda, false),
+    ];
+
+    let data = subs_instruction::Cancel { immediate };
+    let instruction = Instruction { program_id: PROGRAM_PUBKEY, accounts, data: data.data() };
+
+    let tx = Transaction::new_signed_with_payer(&[instruction], Some(&user.pubkey()), &[user], svm.latest_blockhash());
+    let result = svm.send_transaction(tx);
+    println!("Cancel result: {:?}", result);
+    if result.is_ok() {
+        Ok(())
+    } else {
+        Err(())
+    }
+}
+
+pub fn renew(
+    svm: &mut LiteSVM,
+    user: &Keypair,
+    plan_owner: &Pubkey,
+    plan_id: &str,
+    user_token_account: &Pubkey,
+    merchant_token_account: &Pubkey,
+) {
+    let plan_pda = derive_plan_address(plan_owner, plan_id);
+    let sub_pda = derive_subscription_address(&user.pubkey(), &plan_pda);
+
+    let accounts = vec![
+        AccountMeta::new(user.pubkey(), true),
+        AccountMeta::new(plan_pda, false),
+        AccountMeta::new(sub_pda, false),
+        AccountMeta::new(*user_token_account, false),
+        AccountMeta::new(*merchant_token_account, false),
+        AccountMeta::new_readonly(TOKEN_PROGRAM_ID, false),
+        AccountMeta::new_readonly(SYSTEM_PROGRAM_ID(), false),
+    ];
+
+    let instruction = Instruction { program_id: PROGRAM_PUBKEY, accounts, data: subs_instruction::Renew {}.data() };
+
+    let tx = Transaction::new_signed_with_payer(
+        &[instruction.clone()],
+        Some(&user.pubkey()),
+        &[user],
+        svm.latest_blockhash(),
+    );
+    let result = svm.send_transaction(tx);
+    println!("Renew result: {:?}", result);
+
+    if let Err(e) = &result {
+        let err_str = format!("{:?}", e);
+        if err_str.contains("AlreadyProcessed") {
+            println!("Retrying with fresh blockhash...");
+            let mut retries = 3;
+            while retries > 0 {
+                let tx2 = Transaction::new_signed_with_payer(
+                    &[instruction.clone()],
+                    Some(&user.pubkey()),
+                    &[user],
+                    svm.latest_blockhash(),
+                );
+                let result2 = svm.send_transaction(tx2);
+                if let Ok(_) = result2 {
+                    return;
+                }
+                retries -= 1;
+            }
+        }
+    }
+    result.unwrap();
+}
+
+pub fn mint_tokens(svm: &mut LiteSVM, mint: &Pubkey, to: &Pubkey, amount: u64) {
+    let payer = Keypair::new();
+    svm.airdrop(&payer.pubkey(), 10_000_000_000).unwrap();
+    MintTo::new(svm, &payer, mint, to, amount).send().unwrap();
 }

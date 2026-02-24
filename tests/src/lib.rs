@@ -92,6 +92,12 @@ mod test_33_plan_in_subscription;
 mod test_34_plan_in_subscription;
 
 #[cfg(test)]
-mod test_renew;
+mod test_35_renew;
+
+#[cfg(test)]
+mod test_36_cancel;
+
+#[cfg(test)]
+mod test_37_renew_paths;
 
 pub mod test_util;

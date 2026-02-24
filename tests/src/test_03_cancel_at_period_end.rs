@@ -1,6 +1,4 @@
-use crate::test_util::{
-    cancel, create_plan, get_subscription, setup, subscribe, PROGRAM_PUBKEY,
-};
+use crate::test_util::{cancel, create_plan, get_subscription, setup, subscribe, PROGRAM_PUBKEY};
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 use subscription_model::SubscriptionStatus;
