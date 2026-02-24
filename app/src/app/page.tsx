@@ -580,6 +580,17 @@ export default function Dashboard() {
             Manage, explore, and create decentralized recurring payments on
             Solana.
           </p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Need SOL? Get some from{" "}
+            <a
+              href="https://faucet.solana.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#c5a059] hover:underline font-medium"
+            >
+              Solana Faucet
+            </a>
+          </p>
         </div>
 
         {loading ? (
@@ -587,204 +598,137 @@ export default function Dashboard() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#c5a059]"></div>
           </div>
         ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {/* Column 1: Your Subscriptions */}
-          <section className="flex flex-col gap-4">
-            <div className="flex items-center gap-2 mb-2">
-              <RefreshCw className="w-5 h-5 text-[#c5a059]" />
-              <h3 className="text-lg font-bold">Your Subscriptions</h3>
-            </div>
-        
-            {userSubscriptions.length === 0 ? (
-              <EmptyState
-                message={
-                  wallet.connected
-                    ? "No active subscriptions"
-                    : "Connect wallet to view subscriptions"
-                }
-                icon={wallet.connected ? Inbox : Wallet}
-              />
-            ) : (
-              <>
-                {userSubscriptions
-                  .filter((sub) => sub.status !== 5)
-                  .map((sub) => (
-                    <div
-                      key={sub.publicKey.toBase58()}
-                      className="bg-white dark:bg-[#c5a059]/5 border border-slate-200 dark:border-[#c5a059]/20 rounded-xl p-5 flex flex-col gap-4 shadow-sm"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-1">
-                            {getStatusLabel(sub.status)}
-                          </p>
-                          <p className="text-lg font-bold">
-                            Plan: {sub.plan.toBase58().slice(0, 8)}...
-                          </p>
-                        </div>
-                        <div className="size-12 rounded border border-slate-700 bg-slate-800/50 flex items-center justify-center">
-                          <RefreshCw className="w-5 h-5 text-slate-500" />
-                        </div>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">
-                          {sub.cancelAtPeriodEnd ? "Ends" : "Next Payment"}
-                        </span>
-                        <span className="font-medium">
-                          {new Date(sub.currentPeriodEnd * 1000).toLocaleDateString()}
-                        </span>
-                      </div>
-                      {!sub.cancelAtPeriodEnd && (
-                        <div className="grid grid-cols-2 gap-3 mt-2">
-                          <button
-                            onClick={() => {
-                              setCancelSubscription(sub);
-                              setShowCancelModal(true);
-                            }}
-                            disabled={!!processing}
-                            className="flex items-center justify-center gap-2 px-3 py-2 border border-red-500/50 text-red-500 hover:bg-red-500/10 rounded text-xs font-bold transition-colors disabled:opacity-50"
-                          >
-                            {processing === `cancel-${sub.publicKey.toBase58()}` ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <X className="w-3 h-3" />
-                            )}
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => handleRenew(sub)}
-                            disabled={!!processing}
-                            className="flex items-center justify-center gap-2 px-3 py-2 bg-[#c5a059] text-[#051d19] hover:bg-[#d4af37] rounded text-xs font-bold transition-colors disabled:opacity-50"
-                          >
-                            {processing === `renew-${sub.publicKey.toBase58()}` ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <RefreshCw className="w-3 h-3" />
-                            )}
-                            Renew
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-              </>
-            )}
-          </section>
-        
-          {/* Column 2: Available Subscriptions */}
-          <section className="flex flex-col gap-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Search className="w-5 h-5 text-[#c5a059]" />
-              <h3 className="text-lg font-bold uppercase tracking-tight">
-                Available Subscriptions
-              </h3>
-            </div>
-        
-            {plans.length === 0 ? (
-              <EmptyState message="No plans available" icon={Inbox} />
-            ) : (
-              <>
-                {plans.map((plan) => (
-                  <div
-                    key={plan.publicKey.toBase58()}
-                    className="bg-white dark:bg-[#c5a059]/5 border border-slate-200 dark:border-[#c5a059]/10 rounded p-4 flex flex-col gap-3 shadow-sm hover:border-[#c5a059]/40 transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="size-10 rounded bg-[#c5a059]/10 flex items-center justify-center">
-                          <Zap className="w-5 h-5 text-[#c5a059] group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-sm uppercase tracking-wide">
-                            Plan #{plan.planId}
-                          </p>
-                          <p className="text-xs text-slate-500">{plan.description}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleSubscribe(plan)}
-                        disabled={!!processing}
-                        className="px-4 py-1.5 bg-[#c5a059] text-[#051d19] hover:bg-[#d4af37] rounded text-xs font-black transition-all disabled:opacity-50"
-                      >
-                        {processing === plan.publicKey.toBase58() ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          "JOIN"
-                        )}
-                      </button>
-                    </div>
-                    <div className="flex gap-6 pt-2 border-t border-white/5">
-                      <div className="flex flex-col">
-                        <span className="text-[9px] uppercase font-bold text-slate-500">
-                          Price
-                        </span>
-                        <span className="text-sm font-bold">
-                          {formatSol(plan.price)} SOL
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] uppercase font-bold text-slate-500">
-                          Duration
-                        </span>
-                        <span className="text-sm font-bold text-[#c5a059]">
-                          {formatDuration(plan.durationSeconds)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
-        
-            <button className="w-full py-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-[#c5a059] transition-colors flex items-center justify-center gap-2 mt-2">
-              View All Infrastructure Plans
-              <Search className="w-4 h-4" />
-            </button>
-          </section>
-        
-          {/* Column 3: Created Subscriptions */}
-          <section className="flex flex-col gap-4 relative">
-            <div className="flex items-center gap-2 mb-2">
-              <Plus className="w-5 h-5 text-[#c5a059]" />
-              <h3 className="text-lg font-bold uppercase tracking-tight">
-                Created Subscriptions
-              </h3>
-            </div>
-        
-            <div className="flex-1 flex flex-col gap-4 min-h-[400px]">
-              {plans.filter(
-                (p) => wallet.publicKey && p.owner.equals(wallet.publicKey)
-              ).length === 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {/* Column 1: Your Subscriptions */}
+            <section className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 mb-2">
+                <RefreshCw className="w-5 h-5 text-[#c5a059]" />
+                <h3 className="text-lg font-bold">Your Subscriptions</h3>
+              </div>
+
+              {userSubscriptions.length === 0 ? (
                 <EmptyState
                   message={
                     wallet.connected
-                      ? "No active offerings"
-                      : "Connect wallet to create plans"
+                      ? "No active subscriptions"
+                      : "Connect wallet to view subscriptions"
                   }
-                  icon={Layers}
+                  icon={wallet.connected ? Inbox : Wallet}
                 />
               ) : (
-                plans
-                  .filter(
-                    (p) => wallet.publicKey && p.owner.equals(wallet.publicKey)
-                  )
-                  .map((plan) => (
+                <>
+                  {userSubscriptions
+                    .filter((sub) => sub.status !== 5)
+                    .map((sub) => (
+                      <div
+                        key={sub.publicKey.toBase58()}
+                        className="bg-white dark:bg-[#c5a059]/5 border border-slate-200 dark:border-[#c5a059]/20 rounded-xl p-5 flex flex-col gap-4 shadow-sm"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-1">
+                              {getStatusLabel(sub.status)}
+                            </p>
+                            <p className="text-lg font-bold">
+                              Plan: {sub.plan.toBase58().slice(0, 8)}...
+                            </p>
+                          </div>
+                          <div className="size-12 rounded border border-slate-700 bg-slate-800/50 flex items-center justify-center">
+                            <RefreshCw className="w-5 h-5 text-slate-500" />
+                          </div>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-500">
+                            {sub.cancelAtPeriodEnd ? "Ends" : "Next Payment"}
+                          </span>
+                          <span className="font-medium">
+                            {new Date(
+                              sub.currentPeriodEnd * 1000
+                            ).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {!sub.cancelAtPeriodEnd && (
+                          <div className="grid grid-cols-2 gap-3 mt-2">
+                            <button
+                              onClick={() => {
+                                setCancelSubscription(sub);
+                                setShowCancelModal(true);
+                              }}
+                              disabled={!!processing}
+                              className="flex items-center justify-center gap-2 px-3 py-2 border border-red-500/50 text-red-500 hover:bg-red-500/10 rounded text-xs font-bold transition-colors disabled:opacity-50"
+                            >
+                              {processing ===
+                              `cancel-${sub.publicKey.toBase58()}` ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <X className="w-3 h-3" />
+                              )}
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleRenew(sub)}
+                              disabled={!!processing}
+                              className="flex items-center justify-center gap-2 px-3 py-2 bg-[#c5a059] text-[#051d19] hover:bg-[#d4af37] rounded text-xs font-bold transition-colors disabled:opacity-50"
+                            >
+                              {processing ===
+                              `renew-${sub.publicKey.toBase58()}` ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <RefreshCw className="w-3 h-3" />
+                              )}
+                              Renew
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </>
+              )}
+            </section>
+
+            {/* Column 2: Available Subscriptions */}
+            <section className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Search className="w-5 h-5 text-[#c5a059]" />
+                <h3 className="text-lg font-bold uppercase tracking-tight">
+                  Available Subscriptions
+                </h3>
+              </div>
+
+              {plans.length === 0 ? (
+                <EmptyState message="No plans available" icon={Inbox} />
+              ) : (
+                <>
+                  {plans.map((plan) => (
                     <div
                       key={plan.publicKey.toBase58()}
-                      className="bg-white dark:bg-[#c5a059]/5 border border-slate-200 dark:border-[#c5a059]/10 rounded p-4 flex flex-col gap-3 shadow-sm"
+                      className="bg-white dark:bg-[#c5a059]/5 border border-slate-200 dark:border-[#c5a059]/10 rounded p-4 flex flex-col gap-3 shadow-sm hover:border-[#c5a059]/40 transition-all cursor-pointer group"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="size-10 rounded bg-[#c5a059]/10 flex items-center justify-center">
-                            <Zap className="w-5 h-5 text-[#c5a059]" />
+                            <Zap className="w-5 h-5 text-[#c5a059] group-hover:scale-110 transition-transform" />
                           </div>
                           <div>
                             <p className="font-bold text-sm uppercase tracking-wide">
                               Plan #{plan.planId}
                             </p>
-                            <p className="text-xs text-slate-500">{plan.description}</p>
+                            <p className="text-xs text-slate-500">
+                              {plan.description}
+                            </p>
                           </div>
                         </div>
+                        <button
+                          onClick={() => handleSubscribe(plan)}
+                          disabled={!!processing}
+                          className="px-4 py-1.5 bg-[#c5a059] text-[#051d19] hover:bg-[#d4af37] rounded text-xs font-black transition-all disabled:opacity-50"
+                        >
+                          {processing === plan.publicKey.toBase58() ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            "JOIN"
+                          )}
+                        </button>
                       </div>
                       <div className="flex gap-6 pt-2 border-t border-white/5">
                         <div className="flex flex-col">
@@ -805,26 +749,102 @@ export default function Dashboard() {
                         </div>
                       </div>
                     </div>
-                  ))
+                  ))}
+                </>
               )}
-            </div>
-        
-            <div className="sticky bottom-0 pt-4 bg-[#051d19]/80 backdrop-blur-md">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                disabled={!!processing}
-                className="w-full flex items-center justify-center gap-2 py-4 bg-[#c5a059] text-[#051d19] hover:bg-[#d4af37] rounded font-black uppercase tracking-widest shadow-xl shadow-[#c5a059]/10 transition-transform active:scale-95 disabled:opacity-50"
-              >
-                {processing === "create-plan" ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Plus className="w-5 h-5" />
-                )}
-                Create New Plan
+
+              <button className="w-full py-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-[#c5a059] transition-colors flex items-center justify-center gap-2 mt-2">
+                View All Infrastructure Plans
+                <Search className="w-4 h-4" />
               </button>
-            </div>
-          </section>
-        </div>
+            </section>
+
+            {/* Column 3: Created Subscriptions */}
+            <section className="flex flex-col gap-4 relative">
+              <div className="flex items-center gap-2 mb-2">
+                <Plus className="w-5 h-5 text-[#c5a059]" />
+                <h3 className="text-lg font-bold uppercase tracking-tight">
+                  Created Subscriptions
+                </h3>
+              </div>
+
+              <div className="flex-1 flex flex-col gap-4 min-h-[400px]">
+                {plans.filter(
+                  (p) => wallet.publicKey && p.owner.equals(wallet.publicKey)
+                ).length === 0 ? (
+                  <EmptyState
+                    message={
+                      wallet.connected
+                        ? "No active offerings"
+                        : "Connect wallet to create plans"
+                    }
+                    icon={Layers}
+                  />
+                ) : (
+                  plans
+                    .filter(
+                      (p) =>
+                        wallet.publicKey && p.owner.equals(wallet.publicKey)
+                    )
+                    .map((plan) => (
+                      <div
+                        key={plan.publicKey.toBase58()}
+                        className="bg-white dark:bg-[#c5a059]/5 border border-slate-200 dark:border-[#c5a059]/10 rounded p-4 flex flex-col gap-3 shadow-sm"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="size-10 rounded bg-[#c5a059]/10 flex items-center justify-center">
+                              <Zap className="w-5 h-5 text-[#c5a059]" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-sm uppercase tracking-wide">
+                                Plan #{plan.planId}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {plan.description}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-6 pt-2 border-t border-white/5">
+                          <div className="flex flex-col">
+                            <span className="text-[9px] uppercase font-bold text-slate-500">
+                              Price
+                            </span>
+                            <span className="text-sm font-bold">
+                              {formatSol(plan.price)} SOL
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] uppercase font-bold text-slate-500">
+                              Duration
+                            </span>
+                            <span className="text-sm font-bold text-[#c5a059]">
+                              {formatDuration(plan.durationSeconds)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+
+              <div className="sticky bottom-0 pt-4 bg-[#051d19]/80 backdrop-blur-md">
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  disabled={!!processing}
+                  className="w-full flex items-center justify-center gap-2 py-4 bg-[#c5a059] text-[#051d19] hover:bg-[#d4af37] rounded font-black uppercase tracking-widest shadow-xl shadow-[#c5a059]/10 transition-transform active:scale-95 disabled:opacity-50"
+                >
+                  {processing === "create-plan" ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Plus className="w-5 h-5" />
+                  )}
+                  Create New Plan
+                </button>
+              </div>
+            </section>
+          </div>
         )}
       </main>
 
