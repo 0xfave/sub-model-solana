@@ -45,50 +45,63 @@ Devnet Deployment: https://solscan.io/account/6PyMsXWBKo77maWZir1kpE8i71Kuwprgm5
 ## Architecture Diagram
 
 ```mermaid
-graph TD
-    subgraph "Off-Chain (Client / Keeper)"
-        Client[Client App / TS Script] -- "Calls instructions" --> Program
-        Keeper[Keeper Bot / Node.js] -- "Watches events, calls renew/process_expired" --> Program
-    end
-
-    subgraph "Solana Program (sub_model)"
-        Program[Program ID: 6PyMsXWBKo77maWZir1kpE8i71Kuwprgm5hR9e5Ng2r3]
-
-        CreatePlan[create_plan] -- "Creates" --> PlanPDA[Plan PDA: [plan, owner, plan_id]<br>owner, price, duration, trial_days, token_mint, active_subscribers, lifetime_revenue]
-
-        Subscribe[subscribe] -- "Creates/Updates" --> SubPDA[Subscription PDA: [subscription, user, plan]<br>status, previous_status, timestamps, cancel_at_period_end, paused_at, failed_attempts_count]
-
-        Renew[renew] -- "Payment success → Active<br>Failure → PastDue/Unpaid" --> SubPDA
-
-        Cancel[cancel] -- "Immediate or at-period-end flag" --> SubPDA
-
-        Pause[pause] -- "Sets Paused, saves previous_status" --> SubPDA
-        Resume[resume] -- "Restores previous_status, extends period" --> SubPDA
-
-        ProcessExpired[process_expired] -- "Advances: Trialing/Active → PastDue/Canceled<br>PastDue → Unpaid" --> SubPDA
-
-        Reactivate[reactivate] -- "From Unpaid → Active with payment" --> SubPDA
-
-        SPLToken[SPL Token Transfer] -- "Direct to merchant ATA" --> MerchantATA[Merchant Token Account]
-
-        SubPDA -- "Events emitted" --> Events[Events: SubscriptionCreated, RenewalSucceeded/Failed, StatusChanged, etc.]
-    end
-
-    subgraph "State Machine (Subscription Status)"
-        Trialing -->|Trial ends| PastDue
-        Active -->|Renew success| Active
-        Active -->|Failure| PastDue
-        PastDue -->|Grace expires| Unpaid
-        PastDue -->|Renew success| Active
-        Active -->|Cancel immediate| Canceled
-        Active -->|Cancel at end + process_expired| Canceled
-        Active -->|Pause| Paused
-        Paused -->|Resume| Active
-        Unpaid -->|Reactivate| Active
-    end
-
-    Events -- "Helius Webhook / Indexer" --> Keeper
-```
+---
+config:
+  layout: dagre
+---
+flowchart TB
+ subgraph OC["Off-Chain (Client / Keeper)"]
+        Program["Program ID: 6PyMsXWBKo77maWZir1kpE8i71Kuwprgm5hR9e5Ng2r3"]
+        Client["Client App / TS Script"]
+        Keeper["Keeper Bot / Node.js"]
+  end
+ subgraph SP["Solana Program (sub_model)"]
+        PlanPDA["Plan PDA: s5<br>owner, price, duration, trial_days, token_mint, active_subscribers, lifetime_revenue"]
+        CreatePlan["create_plan"]
+        SubPDA["Subscription PDA: s7<br>status, previous_status, timestamps, cancel_at_period_end, paused_at, failed_attempts_count"]
+        Subscribe["subscribe"]
+        Renew["renew"]
+        Cancel["cancel"]
+        Pause["pause"]
+        Resume["resume"]
+        ProcessExpired["process_expired"]
+        Reactivate["reactivate"]
+        MerchantATA["Merchant Token Account"]
+        SPLToken["SPL Token Transfer"]
+        Events["Events: SubscriptionCreated, RenewalSucceeded/Failed, StatusChanged, etc."]
+  end
+ subgraph SM["State Machine (Subscription Status)"]
+        PastDue["PastDue"]
+        Trialing["Trialing"]
+        Active["Active"]
+        Unpaid["Unpaid"]
+        Canceled["Canceled"]
+        Paused["Paused"]
+  end
+    Client -- Calls instructions --> Program
+    Keeper -- Watches events, calls renew/process_expired --> Program
+    CreatePlan -- Creates --> PlanPDA
+    Subscribe -- Creates/Updates --> SubPDA
+    Renew -- Payment success → Active<br>Failure → PastDue/Unpaid --> SubPDA
+    Cancel -- "Immediate or at-period-end flag" --> SubPDA
+    Pause -- Sets Paused, saves previous_status --> SubPDA
+    Resume -- Restores previous_status, extends period --> SubPDA
+    ProcessExpired -- Advances: Trialing/Active → PastDue/Canceled<br>PastDue → Unpaid --> SubPDA
+    Reactivate -- From Unpaid → Active with payment --> SubPDA
+    SPLToken -- Direct to merchant ATA --> MerchantATA
+    SubPDA -- Events emitted --> Events
+    Trialing -- Trial ends --> PastDue
+    Active -- Renew success --> Active
+    Active -- Failure --> PastDue
+    PastDue -- Grace expires --> Unpaid
+    PastDue -- Renew success --> Active
+    Active -- Cancel immediate --> Canceled
+    Active -- Cancel at end + process_expired --> Canceled
+    Active -- Pause --> Paused
+    Paused -- Resume --> Active
+    Unpaid -- Reactivate --> Active
+    Events -- Helius Webhook / Indexer --> Keeper
+    ```
 
 ## Web2 vs Solana Comparison
 
