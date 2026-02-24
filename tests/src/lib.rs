@@ -91,4 +91,7 @@ mod test_33_plan_in_subscription;
 #[cfg(test)]
 mod test_34_plan_in_subscription;
 
+#[cfg(test)]
+mod test_renew;
+
 pub mod test_util;

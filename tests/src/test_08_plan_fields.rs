@@ -11,25 +11,13 @@ fn test_8_plan_fields() {
     let duration_seconds = 30 * 24 * 60 * 60;
     let trial_days = 7;
 
-    create_plan(
-        &mut svm,
-        &merchant,
-        &mint,
-        plan_id,
-        1,
-        price,
-        duration_seconds,
-        trial_days,
-    );
+    create_plan(&mut svm, &merchant, &mint, plan_id, 1, price, duration_seconds, trial_days);
 
-    let plan_pda = Pubkey::find_program_address(
-        &[b"plan", merchant.pubkey().as_ref(), plan_id.as_bytes()],
-        &PROGRAM_PUBKEY,
-    )
-    .0;
+    let plan_pda =
+        Pubkey::find_program_address(&[b"plan", merchant.pubkey().as_ref(), plan_id.as_bytes()], &PROGRAM_PUBKEY).0;
 
     let plan = get_plan(&svm, &plan_pda);
-    
+
     assert_eq!(plan.owner, merchant.pubkey(), "Plan owner should match");
     assert_eq!(plan.price, price, "Plan price should match");
     assert_eq!(plan.duration_seconds, duration_seconds, "Plan duration should match");

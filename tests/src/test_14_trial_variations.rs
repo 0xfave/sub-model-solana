@@ -1,4 +1,4 @@
-use crate::test_util::{create_plan, get_subscription, subscribe, setup, PROGRAM_PUBKEY};
+use crate::test_util::{create_plan, get_subscription, setup, subscribe, PROGRAM_PUBKEY};
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
@@ -19,26 +19,13 @@ fn test_14_different_trial_lengths() {
         7, // with trial
     );
 
-    subscribe(
-        &mut svm,
-        &user,
-        &merchant.pubkey(),
-        plan_id,
-        &user_ata,
-        &merchant_ata,
-    );
+    subscribe(&mut svm, &user, &merchant.pubkey(), plan_id, &user_ata, &merchant_ata);
 
-    let plan_pda = Pubkey::find_program_address(
-        &[b"plan", merchant.pubkey().as_ref(), plan_id.as_bytes()],
-        &PROGRAM_PUBKEY,
-    )
-    .0;
+    let plan_pda =
+        Pubkey::find_program_address(&[b"plan", merchant.pubkey().as_ref(), plan_id.as_bytes()], &PROGRAM_PUBKEY).0;
 
-    let sub_pda = Pubkey::find_program_address(
-        &[b"subscription", user.pubkey().as_ref(), plan_pda.as_ref()],
-        &PROGRAM_PUBKEY,
-    )
-    .0;
+    let sub_pda =
+        Pubkey::find_program_address(&[b"subscription", user.pubkey().as_ref(), plan_pda.as_ref()], &PROGRAM_PUBKEY).0;
 
     let _sub = get_subscription(&svm, &sub_pda);
     // With trial, we can verify the subscription was created

@@ -328,7 +328,6 @@ pub mod subscription_model {
     /// - If status is PastDue and beyond grace, mark as Unpaid.
     pub fn process_expired(ctx: Context<ProcessExpired>) -> Result<()> {
         let subscription = &mut ctx.accounts.subscription;
-        let plan = &mut ctx.accounts.plan;
         let now = Clock::get()?.unix_timestamp;
 
         // Only process if period has ended
@@ -337,7 +336,6 @@ pub mod subscription_model {
         }
 
         let old_status = subscription.status;
-        msg!("❤️Entering match process expired");
 
         match subscription.status {
             SubscriptionStatus::Active => {
@@ -395,10 +393,7 @@ pub mod subscription_model {
                 }
             }
             SubscriptionStatus::PastDue => {
-                msg!("❤️Entering match process expired pastdue");
-                msg!("Gotten to past due");
                 if now >= subscription.grace_deadline() {
-                    msg!("Gotten to grace deadline");
                     subscription.status = SubscriptionStatus::Unpaid;
                     ctx.accounts.plan.active_subscribers =
                         ctx.accounts.plan.active_subscribers.checked_sub(1).ok_or(ErrorCode::SubscribersUnderflow)?;
