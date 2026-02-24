@@ -101,7 +101,7 @@ flowchart TB
     Paused -- Resume --> Active
     Unpaid -- Reactivate --> Active
     Events -- Helius Webhook / Indexer --> Keeper
-    ```
+```
 
 ## Web2 vs Solana Comparison
 
