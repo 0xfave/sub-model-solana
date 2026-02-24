@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
-declare_id!("DTdDF7uKkhVp71NjeDo4U4SqSPVsrVxhLgW3f5bADZzs");
+declare_id!("6PyMsXWBKo77maWZir1kpE8i71Kuwprgm5hR9e5Ng2r3");
 
 pub const GRACE_PERIOD_SECONDS: i64 = 3 * 24 * 60 * 60; // 3 days grace for past_due
 
@@ -597,8 +597,8 @@ impl Subscription {
 
     /// Whether access should be revoked right now (for off-chain enforcement)
     pub fn should_revoke_access(&self, now: i64) -> bool {
-        matches!(self.status, SubscriptionStatus::Unpaid | SubscriptionStatus::Canceled) ||
-            (self.status == SubscriptionStatus::PastDue && now >= self.grace_deadline())
+        matches!(self.status, SubscriptionStatus::Unpaid | SubscriptionStatus::Canceled)
+            || (self.status == SubscriptionStatus::PastDue && now >= self.grace_deadline())
     }
 
     pub fn grace_deadline(&self) -> i64 {

@@ -7,13 +7,16 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-subscription_model = "DTdDF7uKkhVp71NjeDo4U4SqSPVsrVxhLgW3f5bADZzs"
+subscription_model = "6PyMsXWBKo77maWZir1kpE8i71Kuwprgm5hR9e5Ng2r3"
+
+[programs.devnet]
+subscription_model = "6PyMsXWBKo77maWZir1kpE8i71Kuwprgm5hR9e5Ng2r3"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

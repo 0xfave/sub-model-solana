@@ -11,7 +11,7 @@ use solana_system_program::id as SYSTEM_PROGRAM_ID;
 use solana_transaction::Transaction;
 use subscription_model::{instruction as subs_instruction, Subscription};
 
-pub const PROGRAM_ID: &str = "DTdDF7uKkhVp71NjeDo4U4SqSPVsrVxhLgW3f5bADZzs";
+pub const PROGRAM_ID: &str = "6PyMsXWBKo77maWZir1kpE8i71Kuwprgm5hR9e5Ng2r3";
 pub const PROGRAM_PUBKEY: Pubkey = Pubkey::from_str_const(PROGRAM_ID);
 pub const TOKEN_PROGRAM_ID: Pubkey = Pubkey::from_str_const("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 

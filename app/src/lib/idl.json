@@ -1,0 +1,1338 @@
+{
+  "address": "6PyMsXWBKo77maWZir1kpE8i71Kuwprgm5hR9e5Ng2r3",
+  "metadata": {
+    "name": "subscription_model",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "cancel",
+      "docs": [
+        "user cancels their subscription"
+      ],
+      "discriminator": [
+        232,
+        219,
+        223,
+        41,
+        219,
+        236,
+        220,
+        190
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "plan",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "plan.owner",
+                "account": "Plan"
+              },
+              {
+                "kind": "account",
+                "path": "plan.plan_id",
+                "account": "Plan"
+              }
+            ]
+          }
+        },
+        {
+          "name": "subscription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "subscription.plan",
+                "account": "Subscription"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "immediate",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "create_plan",
+      "docs": [
+        "Create a new subscription plan (merchant / admin only)"
+      ],
+      "discriminator": [
+        77,
+        43,
+        141,
+        254,
+        212,
+        118,
+        41,
+        186
+      ],
+      "accounts": [
+        {
+          "name": "plan",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "arg",
+                "path": "plan_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_mint_account"
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "plan_id",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "u16"
+        },
+        {
+          "name": "price",
+          "type": "u64"
+        },
+        {
+          "name": "duration_seconds",
+          "type": "u64"
+        },
+        {
+          "name": "trial_days",
+          "type": "u64"
+        },
+        {
+          "name": "token_mint",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [],
+      "args": []
+    },
+    {
+      "name": "pause",
+      "docs": [
+        "Pause a subscription (user or merchant can call)"
+      ],
+      "discriminator": [
+        211,
+        22,
+        221,
+        251,
+        74,
+        121,
+        193,
+        47
+      ],
+      "accounts": [
+        {
+          "name": "caller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "plan",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "plan.owner",
+                "account": "Plan"
+              },
+              {
+                "kind": "account",
+                "path": "plan.plan_id",
+                "account": "Plan"
+              }
+            ]
+          }
+        },
+        {
+          "name": "subscription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "subscription.user",
+                "account": "Subscription"
+              },
+              {
+                "kind": "account",
+                "path": "plan"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "process_expired",
+      "docs": [
+        "Process expired subscriptions:",
+        "- If cancel_at_period_end is true, mark as Canceled.",
+        "- If Active and expired, move to PastDue.",
+        "- If status is PastDue and beyond grace, mark as Unpaid."
+      ],
+      "discriminator": [
+        128,
+        182,
+        159,
+        31,
+        232,
+        19,
+        28,
+        61
+      ],
+      "accounts": [
+        {
+          "name": "plan",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "plan.owner",
+                "account": "Plan"
+              },
+              {
+                "kind": "account",
+                "path": "plan.plan_id",
+                "account": "Plan"
+              }
+            ]
+          }
+        },
+        {
+          "name": "subscription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "subscription.user",
+                "account": "Subscription"
+              },
+              {
+                "kind": "account",
+                "path": "subscription.plan",
+                "account": "Subscription"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "reactivate",
+      "docs": [
+        "Reactivate an unpaid subscription by paying for a new period"
+      ],
+      "discriminator": [
+        80,
+        134,
+        169,
+        195,
+        146,
+        45,
+        28,
+        140
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "plan",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "plan.owner",
+                "account": "Plan"
+              },
+              {
+                "kind": "account",
+                "path": "plan.plan_id",
+                "account": "Plan"
+              }
+            ]
+          }
+        },
+        {
+          "name": "subscription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "plan"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_token_account",
+          "writable": true
+        },
+        {
+          "name": "merchant_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "renew",
+      "docs": [
+        "Trigger renewal – requires the user's signature."
+      ],
+      "discriminator": [
+        43,
+        239,
+        15,
+        46,
+        27,
+        7,
+        163,
+        73
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "plan",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "plan.owner",
+                "account": "Plan"
+              },
+              {
+                "kind": "account",
+                "path": "plan.plan_id",
+                "account": "Plan"
+              }
+            ]
+          }
+        },
+        {
+          "name": "subscription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "plan"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_token_account",
+          "writable": true
+        },
+        {
+          "name": "merchant_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resume",
+      "docs": [
+        "Resume a paused subscription (user or merchant can call)"
+      ],
+      "discriminator": [
+        1,
+        166,
+        51,
+        170,
+        127,
+        32,
+        141,
+        206
+      ],
+      "accounts": [
+        {
+          "name": "caller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "plan",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "plan.owner",
+                "account": "Plan"
+              },
+              {
+                "kind": "account",
+                "path": "plan.plan_id",
+                "account": "Plan"
+              }
+            ]
+          }
+        },
+        {
+          "name": "subscription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "subscription.user",
+                "account": "Subscription"
+              },
+              {
+                "kind": "account",
+                "path": "plan"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "subscribe",
+      "docs": [
+        "User subscribes to a plan (pays first period or starts trial)"
+      ],
+      "discriminator": [
+        254,
+        28,
+        191,
+        138,
+        156,
+        179,
+        183,
+        53
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "plan",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "plan.owner",
+                "account": "Plan"
+              },
+              {
+                "kind": "account",
+                "path": "plan.plan_id",
+                "account": "Plan"
+              }
+            ]
+          }
+        },
+        {
+          "name": "subscription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "plan"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_token_account"
+        },
+        {
+          "name": "merchant_token_account"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Plan",
+      "discriminator": [
+        161,
+        231,
+        251,
+        119,
+        2,
+        12,
+        162,
+        2
+      ]
+    },
+    {
+      "name": "Subscription",
+      "discriminator": [
+        64,
+        7,
+        26,
+        135,
+        102,
+        132,
+        98,
+        33
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "PlanCreated",
+      "discriminator": [
+        215,
+        11,
+        135,
+        121,
+        208,
+        119,
+        149,
+        149
+      ]
+    },
+    {
+      "name": "PlanUpgraded",
+      "discriminator": [
+        142,
+        234,
+        156,
+        225,
+        59,
+        138,
+        199,
+        182
+      ]
+    },
+    {
+      "name": "RenewalFailed",
+      "discriminator": [
+        100,
+        224,
+        12,
+        167,
+        42,
+        0,
+        234,
+        159
+      ]
+    },
+    {
+      "name": "RenewalSucceeded",
+      "discriminator": [
+        207,
+        182,
+        207,
+        116,
+        144,
+        146,
+        251,
+        73
+      ]
+    },
+    {
+      "name": "StatusChanged",
+      "discriminator": [
+        146,
+        235,
+        222,
+        125,
+        145,
+        246,
+        34,
+        240
+      ]
+    },
+    {
+      "name": "SubscriptionCanceled",
+      "discriminator": [
+        70,
+        219,
+        19,
+        123,
+        27,
+        219,
+        19,
+        197
+      ]
+    },
+    {
+      "name": "SubscriptionCreated",
+      "discriminator": [
+        215,
+        63,
+        169,
+        25,
+        179,
+        200,
+        180,
+        105
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NotEligibleForRenewal",
+      "msg": "Subscription not eligible for renewal"
+    },
+    {
+      "code": 6001,
+      "name": "TooEarlyForRenewal",
+      "msg": "Too early to renew"
+    },
+    {
+      "code": 6002,
+      "name": "Unauthorized",
+      "msg": "Unauthorized caller"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidMerchantAccount",
+      "msg": "Invalid merchant token account"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidUserTokenAccount",
+      "msg": "Invalid user token account"
+    },
+    {
+      "code": 6005,
+      "name": "MintMismatch",
+      "msg": "Token mint mismatch"
+    },
+    {
+      "code": 6006,
+      "name": "AlreadyPaused",
+      "msg": "Subscription is already paused"
+    },
+    {
+      "code": 6007,
+      "name": "CannotPauseInFinalState",
+      "msg": "Cannot pause in final state (canceled/unpaid)"
+    },
+    {
+      "code": 6008,
+      "name": "NotPaused",
+      "msg": "Subscription is not paused"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidPrice",
+      "msg": "Price must be greater than zero"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidDuration",
+      "msg": "Duration must be greater than zero"
+    },
+    {
+      "code": 6011,
+      "name": "TrialTooLong",
+      "msg": "Trial period too long"
+    },
+    {
+      "code": 6012,
+      "name": "DurationOverflow",
+      "msg": "Duration exceeds maximum timestamp"
+    },
+    {
+      "code": 6013,
+      "name": "TimestampOverflow",
+      "msg": "Timestamp arithmetic overflow"
+    },
+    {
+      "code": 6014,
+      "name": "SubscriptionStillActive",
+      "msg": "Subscription still active (cannot re-subscribe)"
+    },
+    {
+      "code": 6015,
+      "name": "PlanMismatch",
+      "msg": "Plan mismatch"
+    },
+    {
+      "code": 6016,
+      "name": "UserMismatch",
+      "msg": "User mismatch"
+    },
+    {
+      "code": 6017,
+      "name": "NotUnpaid",
+      "msg": "Subscription is not in Unpaid state"
+    },
+    {
+      "code": 6018,
+      "name": "InvalidMint",
+      "msg": "Invalid Mint"
+    },
+    {
+      "code": 6019,
+      "name": "CannotPauseWhenPastDue",
+      "msg": "Cannot pause a subscription that is PastDue"
+    },
+    {
+      "code": 6020,
+      "name": "PlanIdTooLong",
+      "msg": "Plan ID exceeds maximum length"
+    },
+    {
+      "code": 6021,
+      "name": "DowngradeNotSupported",
+      "msg": "Downgrade not supported"
+    },
+    {
+      "code": 6022,
+      "name": "PeriodExpired",
+      "msg": "Subscription period has expired"
+    },
+    {
+      "code": 6023,
+      "name": "SubscribersUnderflow",
+      "msg": "Subscriber Underflow"
+    },
+    {
+      "code": 6024,
+      "name": "SubscribersOverflow",
+      "msg": "Subscriber Overflow"
+    },
+    {
+      "code": 6025,
+      "name": "RevenueOverflow",
+      "msg": "Revenue Overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "Plan",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "plan_id",
+            "type": "string"
+          },
+          {
+            "name": "version",
+            "type": "u16"
+          },
+          {
+            "name": "price",
+            "type": "u64"
+          },
+          {
+            "name": "duration_seconds",
+            "type": "u64"
+          },
+          {
+            "name": "trial_days",
+            "type": "u64"
+          },
+          {
+            "name": "token_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "active_subscribers",
+            "type": "u64"
+          },
+          {
+            "name": "lifetime_revenue",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlanCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "plan",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "price",
+            "type": "u64"
+          },
+          {
+            "name": "duration_seconds",
+            "type": "u64"
+          },
+          {
+            "name": "trial_days",
+            "type": "u64"
+          },
+          {
+            "name": "token_mint",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlanUpgraded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "subscription",
+            "type": "pubkey"
+          },
+          {
+            "name": "from_plan",
+            "type": "pubkey"
+          },
+          {
+            "name": "to_plan",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RenewalFailed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "subscription",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "attempt",
+            "type": "u8"
+          },
+          {
+            "name": "reason",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RenewalSucceeded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "subscription",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "new_end",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "StatusChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "subscription",
+            "type": "pubkey"
+          },
+          {
+            "name": "old_status",
+            "type": {
+              "defined": {
+                "name": "SubscriptionStatus"
+              }
+            }
+          },
+          {
+            "name": "new_status",
+            "type": {
+              "defined": {
+                "name": "SubscriptionStatus"
+              }
+            }
+          },
+          {
+            "name": "reason",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Subscription",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "plan",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "SubscriptionStatus"
+              }
+            }
+          },
+          {
+            "name": "previous_status",
+            "type": {
+              "defined": {
+                "name": "SubscriptionStatus"
+              }
+            }
+          },
+          {
+            "name": "start_ts",
+            "type": "i64"
+          },
+          {
+            "name": "current_period_start",
+            "type": "i64"
+          },
+          {
+            "name": "current_period_end",
+            "type": "i64"
+          },
+          {
+            "name": "cancel_at_period_end",
+            "type": "bool"
+          },
+          {
+            "name": "paused_at",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "last_payment_ts",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "failed_attempts_count",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SubscriptionCanceled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "subscription",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "immediate",
+            "type": "bool"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SubscriptionCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "subscription",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "plan",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "SubscriptionStatus"
+              }
+            }
+          },
+          {
+            "name": "start_ts",
+            "type": "i64"
+          },
+          {
+            "name": "current_period_end",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SubscriptionStatus",
+      "repr": {
+        "kind": "rust"
+      },
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Trialing"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "PastDue"
+          },
+          {
+            "name": "Unpaid"
+          },
+          {
+            "name": "Canceled"
+          },
+          {
+            "name": "Paused"
+          }
+        ]
+      }
+    }
+  ]
+}
