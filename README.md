@@ -8,7 +8,7 @@ Devnet Deployment: https://solscan.io/account/6PyMsXWBKo77maWZir1kpE8i71Kuwprgm5
 > For the full story, trade-offs, and bounty context, read the article:  
 [Rebuilding Subscription Billing as a Trustless Solana Program](https://0xfave.hashnode.dev/bringing-subscription-billing-on-chain-a-solana-experiment)
 
-> Check website
+> Check [website](https://sub-model-solana-ecsuy2off-fave28s-projects.vercel.app/)
 
 ![Website](website.png)
 
@@ -400,4 +400,3 @@ Use a Node.js keeper with Helius to auto-call `renew` / `process_expired` on eve
 ## License
 
 MIT
-```
